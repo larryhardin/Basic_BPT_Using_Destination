@@ -8,3 +8,4 @@ applications:
     services:
       - my-destination-service
       - my-connectivity-service
+      - my-xsuaa

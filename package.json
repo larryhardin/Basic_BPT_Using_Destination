@@ -4,7 +4,8 @@
   "description": "Basic SAP BTP Node.js app that calls a remote service through a BTP Destination",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test \"test/**/*.test.js\""
   },
   "engines": {
     "node": ">=18"
@@ -12,6 +13,8 @@
   "dependencies": {
     "@sap-cloud-sdk/connectivity": "^3.26.0",
     "@sap-cloud-sdk/http-client": "^3.26.0",
+    "@sap/xsenv": "^5.2.0",
+    "@sap/xssec": "^4.2.0",
     "express": "^4.19.2"
   }
 }
