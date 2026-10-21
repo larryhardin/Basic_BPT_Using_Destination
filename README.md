@@ -16,6 +16,17 @@ cf push
 3. Set `DESTINATION_NAME` in [manifest.yml](./manifest.yml) if your destination has another name.
 4. Open `https://<app-url>/call?path=/your/api/path`.
 
+## Code quality
+
+```powershell
+npm run lint          # ESLint
+npm run format:check  # Prettier check
+npm run format        # Prettier auto-fix
+npm run check         # lint + format check
+```
+
+Config: [eslint.config.js](./eslint.config.js), [.prettierrc](./.prettierrc).
+
 ## Local run
 
 Bind to the service locally (`cf create-service-key` and put the credentials in `VCAP_SERVICES` / `default-env.json`), then `npm start`.

@@ -4,7 +4,11 @@
   "description": "Basic SAP BTP Node.js app that calls a remote service through a BTP Destination",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run lint && npm run format:check"
   },
   "engines": {
     "node": ">=18"
@@ -13,5 +17,12 @@
     "@sap-cloud-sdk/connectivity": "^3.26.0",
     "@sap-cloud-sdk/http-client": "^3.26.0",
     "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.13.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10"
   }
 }
