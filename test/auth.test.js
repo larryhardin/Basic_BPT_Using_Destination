@@ -74,6 +74,15 @@ test('root route is also protected and works with a valid token', async () => {
   assert.strictEqual((await get('/', 'valid')).status, 200);
 });
 
+test('does not disclose the framework via X-Powered-By', async () => {
+  const withToken = await get('/', 'valid');
+  assert.strictEqual(withToken.headers.get('x-powered-by'), null);
+  // Also absent on rejected responses, which are public
+  const noToken = await get('/');
+  assert.strictEqual(noToken.status, 401);
+  assert.strictEqual(noToken.headers.get('x-powered-by'), null);
+});
+
 test('rejects a path that does not start with "/" (400)', async () => {
   const res = await get('/call?path=sap/x', 'valid');
   assert.strictEqual(res.status, 400);

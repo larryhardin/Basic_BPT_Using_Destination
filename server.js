@@ -7,6 +7,8 @@ const REQUIRED_SCOPE = 'call-destination';
 // Dependencies are injectable so the auth checks can be unit tested
 function createApp({ createSecurityContext, sendRequest = executeHttpRequest } = {}) {
   const app = express();
+  // Don't advertise the framework via the X-Powered-By header
+  app.disable('x-powered-by');
 
   // Validates the bearer JWT and requires the local scope on every route
   app.use(async (req, res, next) => {
@@ -62,8 +64,7 @@ function start() {
   const { xsuaa } = xsenv.getServices({ xsuaa: { label: 'xsuaa' } });
   const authService = new xssec.XsuaaService(xsuaa);
   const app = createApp({
-    createSecurityContext: (req, token) =>
-      xssec.createSecurityContext(authService, { req, token })
+    createSecurityContext: (req, token) => xssec.createSecurityContext(authService, { req, token })
   });
   const port = process.env.PORT || 3000;
   app.listen(port, () => console.log(`Listening on port ${port}`));
