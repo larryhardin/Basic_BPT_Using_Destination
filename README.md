@@ -43,6 +43,17 @@ Assign the role collection `Basic_BTP_Destination_Caller` to users in the BTP co
 
 `GET /call?path=/your/api/path` calls `<destination URL>/your/api/path`. URL-encode query strings inside `path` (for example `path=%2Fsap%2Fx%3Fsap-client%3D100`). Use `curl.exe -i` to see the HTTP status.
 
+## Code quality
+
+```powershell
+npm run lint          # ESLint
+npm run format:check  # Prettier check
+npm run format        # Prettier auto-fix
+npm run check         # lint + format check
+```
+
+Config: [eslint.config.js](./eslint.config.js), [.prettierrc](./.prettierrc).
+
 ## Local run
 
 Run the unit tests (auth checks with and without a token, no BTP needed) with `npm test`.
