@@ -1,0 +1,17 @@
+{
+  "name": "basic-btp-using-destination",
+  "version": "1.0.0",
+  "description": "Basic SAP BTP Node.js app that calls a remote service through a BTP Destination",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@sap-cloud-sdk/connectivity": "^3.26.0",
+    "@sap-cloud-sdk/http-client": "^3.26.0",
+    "express": "^4.19.2"
+  }
+}

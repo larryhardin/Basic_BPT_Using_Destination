@@ -1,0 +1,10 @@
+applications:
+  - name: basic-btp-destination-app
+    memory: 256M
+    buildpack: nodejs_buildpack
+    command: node server.js
+    env:
+      DESTINATION_NAME: Local_NetWeaver_Test
+    services:
+      - my-destination-service
+      - my-connectivity-service
