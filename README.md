@@ -41,7 +41,7 @@ Assign the role collection `Basic_BTP_Destination_Caller` to users in the BTP co
 
 ## Usage
 
-`GET /call?path=/your/api/path` calls `<destination URL>/your/api/path`. URL-encode query strings inside `path` (for example `path=%2Fsap%2Fx%3Fsap-client%3D100`). Use `curl.exe -i` to see the HTTP status.
+`GET /call?path=/your/api/path` calls `<destination URL>/your/api/path`. URL-encode query strings inside `path` (for example `path=%2Fsap%2Fx%3Fsap-client%3D100`). `path` must start with `/` and must not contain `..` segments (400 otherwise). Use `curl.exe -i` to see the HTTP status.
 
 ## Code quality
 

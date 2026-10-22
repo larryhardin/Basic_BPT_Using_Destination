@@ -1,11 +1,18 @@
 const express = require('express');
 const { executeHttpRequest } = require('@sap-cloud-sdk/http-client');
 
-const DESTINATION_NAME = process.env.DESTINATION_NAME || 'Local_NetWeaver_Test';
 const REQUIRED_SCOPE = 'call-destination';
+const DEFAULT_DESTINATION = 'Local_NetWeaver_Test';
+
+// xssec expects a raw JWT string in `jwt`; `token` would need a decoded Token instance
+function createXssecAdapter(xssec, authService) {
+  return (req, jwt) => xssec.createSecurityContext(authService, { req, jwt });
+}
 
 // Dependencies are injectable so the auth checks can be unit tested
 function createApp({ createSecurityContext, sendRequest = executeHttpRequest } = {}) {
+  // Read here, not at import, so values from default-env.json (loaded in start()) are honored
+  const destinationName = process.env.DESTINATION_NAME || DEFAULT_DESTINATION;
   const app = express();
   // Don't advertise the framework via the X-Powered-By header
   app.disable('x-powered-by');
@@ -32,7 +39,7 @@ function createApp({ createSecurityContext, sendRequest = executeHttpRequest } =
   app.get('/', (req, res) => {
     res.json({
       message: 'BTP destination demo',
-      destination: DESTINATION_NAME,
+      destination: destinationName,
       usage: '/call?path=/some/path'
     });
   });
@@ -43,11 +50,13 @@ function createApp({ createSecurityContext, sendRequest = executeHttpRequest } =
     if (!path.startsWith('/')) {
       return res.status(400).json({ error: 'path must start with "/"' });
     }
+    // Keep requests inside the destination's URL space
+    const pathOnly = path.split('?')[0];
+    if (pathOnly.split(/[/\\]/).some((s) => s === '..' || s.toLowerCase() === '%2e%2e')) {
+      return res.status(400).json({ error: 'path must not contain ".." segments' });
+    }
     try {
-      const response = await sendRequest(
-        { destinationName: DESTINATION_NAME },
-        { method: 'GET', url: path }
-      );
+      const response = await sendRequest({ destinationName }, { method: 'GET', url: path });
       res.status(response.status).json(response.data);
     } catch (err) {
       console.error(err.message);
@@ -65,9 +74,7 @@ function start() {
   const xssec = require('@sap/xssec');
   const { xsuaa } = xsenv.getServices({ xsuaa: { label: 'xsuaa' } });
   const authService = new xssec.XsuaaService(xsuaa);
-  const app = createApp({
-    createSecurityContext: (req, token) => xssec.createSecurityContext(authService, { req, token })
-  });
+  const app = createApp({ createSecurityContext: createXssecAdapter(xssec, authService) });
   const port = process.env.PORT || 3000;
   app.listen(port, () => console.log(`Listening on port ${port}`));
 }
@@ -76,4 +83,4 @@ if (require.main === module) {
   start();
 }
 
-module.exports = { createApp, REQUIRED_SCOPE };
+module.exports = { createApp, createXssecAdapter, REQUIRED_SCOPE };

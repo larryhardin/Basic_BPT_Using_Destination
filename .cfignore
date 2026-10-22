@@ -1,0 +1,4 @@
+node_modules
+default-env.json
+test
+.env
