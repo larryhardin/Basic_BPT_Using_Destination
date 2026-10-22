@@ -1,0 +1,28 @@
+{
+  "xsappname": "basic-btp-destination-app",
+  "tenant-mode": "dedicated",
+  "scopes": [
+    {
+      "name": "$XSAPPNAME.call-destination",
+      "description": "Call the backend through the BTP destination"
+    }
+  ],
+  "authorities": ["$XSAPPNAME.call-destination"],
+  "role-templates": [
+    {
+      "name": "DestinationCaller",
+      "description": "Can call the backend through the destination",
+      "scope-references": ["$XSAPPNAME.call-destination"]
+    }
+  ],
+  "role-collections": [
+    {
+      "name": "Basic_BTP_Destination_Caller",
+      "description": "Access to the destination caller app",
+      "role-template-references": ["$XSAPPNAME.DestinationCaller"]
+    }
+  ],
+  "oauth2-configuration": {
+    "grant-types": ["client_credentials", "authorization_code", "password"]
+  }
+}
