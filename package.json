@@ -16,7 +16,7 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@sap-cloud-sdk/connectivity": "^3.26.0",
+    "@sap-cloud-sdk/connectivity": "^4.9.1",
     "@sap-cloud-sdk/http-client": "^3.26.0",
     "@sap/xsenv": "^5.2.0",
     "@sap/xssec": "^4.2.0",
