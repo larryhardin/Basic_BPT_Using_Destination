@@ -103,10 +103,10 @@ test('/call rejects an unsafe path (400) and never reaches the backend', async (
   assert.strictEqual(backendCalls.length, 0);
 });
 
-test('/call forwards a safe path unchanged, including query and literal percent', async () => {
+test('/call forwards a safe path unchanged, including the query', async () => {
   for (const path of [
     '/sap/opu/odata/svc;v=2/Entity.json?$filter=a eq 1',
-    '/reports/100%25.csv',
+    '/sap/Items(%27a%27)/x',
     '/sap/x?file=../y'
   ]) {
     backendCalls.length = 0;

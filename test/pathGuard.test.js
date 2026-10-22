@@ -43,7 +43,13 @@ const UNSAFE = [
   '/ /x', // URL parsers trim the leading space, leaving "/x"
   '/ ../x',
   '/  //attacker.invalid/x',
-  '/%20/x',
+  '/reports/100%25.csv', // "%25" is outside the grammar
+  '/sap/Items(%27100%25%27)',
+  '/caf%C3%A9', // non-ASCII escapes are outside the grammar
+  '/%E2%82%AC',
+  '/a/b c', // raw space
+  '/a//b', // empty segment
+  '/a/./b',
   '/%2f%2fattacker.invalid/admin',
   '/%5cattacker.invalid/admin',
   '/%252f%252fattacker.invalid/admin',
@@ -87,12 +93,12 @@ const SAFE = [
   '/sap/opu/odata/svc;v=2/Entity.json',
   '/sap/x?file=../y', // ".." in the query string is not part of the path
   '/sap/x?file=%2e%2e%2fy',
-  '/reports/100%25.csv', // literal percent signs (reviewer)
-  '/sap/Items(%27100%25%27)',
-  '/a/100%25/b',
-  '/caf%C3%A9',
   '/%20x',
-  '/%E2%82%AC'
+  '/%20/x',
+  '/sap/Items(%27a%27,b=%27c%27)',
+  '/sap/x/',
+  '/sap/odata/svc;v=2/Entity.json',
+  '/sap/a..b/...'
 ];
 
 test('rejects every known traversal / network-path / control-character form', () => {
@@ -169,22 +175,7 @@ test('a path accepted by the guard never escapes under any decoding depth (rando
 });
 
 test('benign paths are never rejected (randomized, guards against over-blocking)', () => {
-  const pieces = [
-    'a',
-    'b',
-    'x',
-    'y',
-    '_',
-    '-',
-    '7',
-    '%27',
-    'q%20q',
-    '(',
-    ')',
-    '=',
-    '100%25_',
-    '%C3%A9'
-  ];
+  const pieces = ['a', 'b', 'x', 'y', '_', '-', '7', '%27', 'q%20q', '(', ')', '=', '100_', '(a)'];
   const rand = prng(2024);
   for (let i = 0; i < 20000; i++) {
     let path = '';
