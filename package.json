@@ -18,7 +18,7 @@
   "dependencies": {
     "@sap-cloud-sdk/connectivity": "^3.26.0",
     "@sap-cloud-sdk/http-client": "^3.26.0",
-    "@sap/xsenv": "^5.2.0",
+    "@sap/xsenv": "^6.2.2",
     "@sap/xssec": "^4.2.0",
     "express": "^4.19.2",
     "express-rate-limit": "^8.7.1",
