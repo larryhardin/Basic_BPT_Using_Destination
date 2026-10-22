@@ -4,6 +4,29 @@ const { executeHttpRequest } = require('@sap-cloud-sdk/http-client');
 const REQUIRED_SCOPE = 'call-destination';
 const DEFAULT_DESTINATION = 'Local_NetWeaver_Test';
 
+// Detects parent-directory segments in any encoding: percent-decodes repeatedly (so mixed and
+// double encodings like ".%2e" or "%252e%252e" normalize), then checks each segment.
+// Undecodable input and absurd nesting are treated as unsafe.
+function hasTraversal(path) {
+  let current = path.split('?')[0]; // strip the query once; later "?" can only come from decoding
+  for (let i = 0; i < 5; i++) {
+    const hit = current
+      .split(/[/\\]/)
+      // ";params" are path parameters that some servers strip, so "..;" is also ".."
+      .some((segment) => segment.split(';')[0].trim() === '..');
+    if (hit) return true;
+    let decoded;
+    try {
+      decoded = decodeURIComponent(current);
+    } catch {
+      return true;
+    }
+    if (decoded === current) return false;
+    current = decoded;
+  }
+  return true;
+}
+
 // xssec expects a raw JWT string in `jwt`; `token` would need a decoded Token instance
 function createXssecAdapter(xssec, authService) {
   return (req, jwt) => xssec.createSecurityContext(authService, { req, jwt });
@@ -51,8 +74,7 @@ function createApp({ createSecurityContext, sendRequest = executeHttpRequest } =
       return res.status(400).json({ error: 'path must start with "/"' });
     }
     // Keep requests inside the destination's URL space
-    const pathOnly = path.split('?')[0];
-    if (pathOnly.split(/[/\\]/).some((s) => s === '..' || s.toLowerCase() === '%2e%2e')) {
+    if (hasTraversal(path)) {
       return res.status(400).json({ error: 'path must not contain ".." segments' });
     }
     try {

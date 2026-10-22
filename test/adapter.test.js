@@ -91,15 +91,56 @@ before(async () => {
 
 after(() => new Promise((resolve) => server.close(resolve)));
 
-test('rejects paths with ".." segments (400) and does not call the backend', async () => {
+const TRAVERSAL_PATHS = [
+  '/a/../b',
+  '/..',
+  '/a\\..\\b',
+  '/a/%2e%2e/b', // fully encoded
+  '/a/%2E%2E/b', // upper case
+  '/a/.%2e/admin', // mixed encoding
+  '/a/%2e./admin',
+  '/a/.%2E/admin',
+  '/a/%2E./admin',
+  '/a/%252e%252e/admin', // double encoded
+  '/a/.%252e/admin',
+  '/a/%252e./admin',
+  '/a/%25252e%25252e/admin', // triple encoded
+  '/a/..%2fadmin', // encoded slash after dots
+  '/a%2f..%2fadmin',
+  '/a/..%5cadmin', // encoded backslash
+  '/a/..;/admin', // path parameter after dots
+  '/a/%2e%2e;x=1/admin',
+  '/a%3F/../admin', // encoded "?" must not hide a later segment
+  '/a/%zz/..', // undecodable escape
+  '/a/%2e%2e' // trailing
+];
+
+test('rejects ".." segments in any encoding (400) and does not call the backend', async () => {
   backendCalls.length = 0;
-  for (const path of ['/a/../b', '/..', '/a/..%2Fb'.replace('%2F', '/'), '/a\\..\\b']) {
+  for (const path of TRAVERSAL_PATHS) {
     const res = await fetch(`${baseUrl}/call?path=${encodeURIComponent(path)}`, {
       headers: { Authorization: 'Bearer valid' }
     });
     assert.strictEqual(res.status, 400, path);
   }
   assert.strictEqual(backendCalls.length, 0);
+});
+
+test('allows dots, encoded characters and ".." inside the query string', async () => {
+  for (const path of [
+    '/sap/Entity.json',
+    '/sap/a..b/c',
+    '/sap/.hidden/..config',
+    '/sap/odata/Items(%27a%27)',
+    '/sap/x?file=../y'
+  ]) {
+    backendCalls.length = 0;
+    const res = await fetch(`${baseUrl}/call?path=${encodeURIComponent(path)}`, {
+      headers: { Authorization: 'Bearer valid' }
+    });
+    assert.strictEqual(res.status, 200, path);
+    assert.deepStrictEqual(backendCalls, [path]);
+  }
 });
 
 test('allows normal paths including dots in names', async () => {
