@@ -5,6 +5,10 @@ applications:
     command: node server.js
     env:
       DESTINATION_NAME: Local_NetWeaver_Test
+      ALLOWED_PATH_PREFIXES: /sap/opu/odata/
+      RATE_LIMIT_PER_MINUTE: 60
+    health-check-type: http
+    health-check-http-endpoint: /health
     services:
       - my-destination-service
       - my-connectivity-service

@@ -1,63 +1,67 @@
 // Guards the "path" a caller wants forwarded to the destination.
 //
-// A backend may percent-decode a path once, twice or more before it resolves dot segments, so
-// no single view of the path is trustworthy. Instead of listing known-bad encodings, the guard
-// follows the path through EVERY decoding level until it stops changing (a fixed point) and
-// requires each level to pass the same strict check. If every level is safe, the path is safe
-// no matter how many times a backend decodes it.
+// This is an allowlist, not a model of how a backend decodes. Every percent-escape that could
+// ever turn into a dot, slash, backslash, "?", "#", ";", a control character, a hex digit or a
+// "%" is rejected, so there is nothing a second or third decoding pass could assemble into
+// "..", "%2e" or "//host". Whatever decoder the backend uses, the result is the same string.
 //
-// Rules applied to every level:
-//  - starts with exactly one "/" (rejects "//host" network-path prefixes, "/\host", and "/ /host"
-//    because URL parsers trim leading spaces)
-//  - no control characters (NUL, tab, CR, LF, DEL ...): URL parsers silently drop some of them,
-//    which turns ".<TAB>." into ".."
-//  - no backslash: many servers treat it as "/"
-//  - no ".." segment, also when written "..;params" (some servers strip ";params")
-//  - no overlong UTF-8 lead bytes (%c0, %c1, ...), the classic encoded-dot bypass
-// Delimiters that appear through decoding ("?", "#", "/") are ordinary characters; only a real
-// "?" or "#" in the caller's raw string ends the path (the query is not inspected).
+// Rules for the path part (everything before the first real "?" or "#"):
+//  - starts with exactly one "/" and no space/separator run after it ("//host", "/\host", "/ /host")
+//  - no control characters and no backslash, literal or escaped
+//  - no ".." segment (also "..;params"); dots cannot be escaped, so this check is final
+//  - escapes only for a small set of harmless ASCII symbols, or for valid UTF-8 (bytes >= 0x80)
+//  - "%25" (a literal percent sign) is allowed only when the next two characters are not hex
+//    digits, because "%252e" would otherwise decode to "%2e"
+// The query string after the first real "?" or "#" is not inspected.
 
-const MAX_DECODE_PASSES = 10;
-const OVERLONG_UTF8 = /%c[01]|%e0%[89][0-9a-f]|%f0%8[0-9a-f]/i;
-const ESCAPE_RUN = /(?:%[0-9a-f]{2})+/gi;
+const HEX_PAIR = /^[0-9a-f]{2}$/i;
+
+// Escapes allowed for ASCII bytes: space ! " $ & ' ( ) * + , - : = @ < > [ ] ^ _ ` { | } ~
+const SAFE_ASCII_ESCAPES = new Set([
+  0x20, 0x21, 0x22, 0x24, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x3a, 0x3c, 0x3d, 0x3e,
+  0x40, 0x5b, 0x5d, 0x5e, 0x5f, 0x60, 0x7b, 0x7c, 0x7d, 0x7e
+]);
 
 const hasControlChars = (s) => [...s].some((c) => c.codePointAt(0) <= 0x1f || c === '\u007f');
 
-function isUnsafeLevel(level) {
-  if (!/^\/(?! *[/\\])/.test(level)) return true;
-  if (hasControlChars(level) || level.includes('\\') || OVERLONG_UTF8.test(level)) return true;
-  return level.split('/').some((segment) => segment.split(';')[0].trim() === '..');
-}
-
-// Decodes every valid UTF-8 escape run. A "%" that is not followed by two hex digits stays
-// literal, so legitimate values such as "100%25.csv" (-> "100%.csv") remain usable.
-// An escape run that is not valid UTF-8 is a malformed request on the first pass; on later
-// passes it is a literal "%XX" that a decoded value happens to contain, and is left as is.
-function decodeOnce(level, firstPass) {
-  let malformed = false;
-  const decoded = level.replace(ESCAPE_RUN, (run) => {
-    try {
-      return decodeURIComponent(run);
-    } catch {
-      malformed = true;
-      return run;
+function escapesAreSafe(path) {
+  for (let i = 0; i < path.length; i++) {
+    if (path[i] !== '%') continue;
+    const hex = path.slice(i + 1, i + 3);
+    if (!HEX_PAIR.test(hex)) continue; // a lone "%" is just a literal character
+    const byte = parseInt(hex, 16);
+    if (byte >= 0x80) {
+      // Consume the whole run of high-byte escapes and require valid (non-overlong) UTF-8
+      let end = i;
+      while (/^%[89a-f][0-9a-f]/i.test(path.slice(end, end + 3))) end += 3;
+      try {
+        decodeURIComponent(path.slice(i, end));
+      } catch {
+        return false;
+      }
+      i = end - 1;
+    } else if (byte === 0x25) {
+      if (HEX_PAIR.test(path.slice(i + 3, i + 5))) return false;
+      i += 2;
+    } else if (SAFE_ASCII_ESCAPES.has(byte)) {
+      i += 2;
+    } else {
+      return false;
     }
-  });
-  return firstPass && malformed ? null : decoded;
+  }
+  return true;
 }
 
-// Returns true if the path could leave the destination's URL space (or is malformed).
 function hasTraversal(path) {
-  if (typeof path !== 'string' || hasControlChars(path)) return true;
-  let level = path.split(/[?#]/)[0];
-  for (let pass = 0; pass <= MAX_DECODE_PASSES; pass++) {
-    if (isUnsafeLevel(level)) return true;
-    const next = decodeOnce(level, pass === 0);
-    if (next === null) return true;
-    if (next === level) return false;
-    level = next;
-  }
-  return true; // still changing after MAX_DECODE_PASSES: absurd nesting, treat as unsafe
+  if (typeof path !== 'string') return true;
+  const pathOnly = path.split(/[?#]/)[0];
+  if (hasControlChars(path) || pathOnly.includes('\\')) return true;
+  if (!/^\/(?! *[/\\])/.test(pathOnly)) return true;
+  if (!escapesAreSafe(pathOnly)) return true;
+  // After the checks above one decoding pass is the only one that can change anything
+  const decoded = pathOnly.replace(/(?:%[0-9a-f]{2})+/gi, (run) => decodeURIComponent(run));
+  if (!/^\/(?! *[/\\])/.test(decoded) || hasControlChars(decoded)) return true;
+  return decoded.split('/').some((segment) => segment.split(';')[0].trim() === '..');
 }
 
 module.exports = { hasTraversal };

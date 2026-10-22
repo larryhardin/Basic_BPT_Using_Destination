@@ -41,7 +41,17 @@ Assign the role collection `Basic_BTP_Destination_Caller` to users in the BTP co
 
 ## Usage
 
-`GET /call?path=/your/api/path` calls `<destination URL>/your/api/path`. URL-encode query strings inside `path` (for example `path=%2Fsap%2Fx%3Fsap-client%3D100`). `path` must start with `/`. It is rejected with 400 if, at the raw value or at any level of percent-decoding (checked until it stops changing), it does not start with exactly one `/` (so `//host` and `/ /host` fail), contains control characters or backslashes, has an overlong UTF-8 escape, or has a `..` segment (`.%2e`, `%2E%2E`, `..;x`, `%252e%252e`, `%25%32%65`). Decoded `?` and `#` are treated as ordinary path characters. Literal percent signs (`%25`) and `..` inside the real query string are allowed. Use `curl.exe -i` to see the HTTP status.
+`GET /call?path=/your/api/path` calls `<destination URL>/your/api/path`. URL-encode query strings inside `path` (for example `path=%2Fsap%2Fx%3Fsap-client%3D100`). `path` must start with `/`. It is rejected with 400 unless it starts with exactly one `/` (so `//host` and `/ /host` fail), has no control characters or backslashes, and has no `..` segment (also `..;x`). Percent-escapes are limited to UTF-8 and a few harmless symbols (space, quotes, parentheses, `=`, `,`, `:`, `@`, `$`, `&`, `+`, `*`, `-`, `_`, `~`); escapes for dots, slashes, `?`, `#`, `;`, control characters and hex digits (for example `%2e`, `%2f`, `%3f`, `%32`) are rejected, so nested encodings such as `%252e` cannot be assembled. `%25` is allowed unless two hex digits follow it. The part after the first real `?` (the query string) is not inspected. Use `curl.exe -i` to see the HTTP status.
+
+## Guard rails
+
+- **Auth:** XSUAA bearer token plus scope `call-destination` on every route except `GET /health` (used as the CF health check).
+- **Path allowlist:** `ALLOWED_PATH_PREFIXES` (comma-separated, set in `manifest.yml`, default `/sap/opu/odata/`) limits which backend paths `/call` can reach; others get 403. Unset means no prefix restriction. Add prefixes there when you need other paths (for example `/sap/bc/`).
+- **Path validation:** see Usage; applied before the allowlist.
+- **Rate limit:** `RATE_LIMIT_PER_MINUTE` (default 60) per client IP, 429 when exceeded.
+- **Backend calls:** 10 s timeout, 5 MB response cap, GET only. Errors return only a generic message or the backend status; details go to the log.
+- **Headers:** `helmet` security headers, `X-Powered-By` disabled.
+- **Operations:** graceful shutdown on SIGTERM, `npm run audit`, weekly Dependabot updates.
 
 ## Code quality
 
