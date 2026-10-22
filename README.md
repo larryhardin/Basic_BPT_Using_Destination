@@ -41,7 +41,7 @@ Assign the role collection `Basic_BTP_Destination_Caller` to users in the BTP co
 
 ## Usage
 
-`GET /call?path=/your/api/path` calls `<destination URL>/your/api/path`. URL-encode query strings inside `path` (for example `path=%2Fsap%2Fx%3Fsap-client%3D100`). `path` must start with `/` and must not contain `..` segments (400 otherwise). Use `curl.exe -i` to see the HTTP status.
+`GET /call?path=/your/api/path` calls `<destination URL>/your/api/path`. URL-encode query strings inside `path` (for example `path=%2Fsap%2Fx%3Fsap-client%3D100`). `path` must start with `/`. It is rejected with 400 if it contains control characters (tab, CR, LF, NUL), double-encoded dots or separators (`%252e`, `%255c`), `..` segments in any encoding (`.%2e`, `%2E%2E`, `..;`), or anything that would resolve outside the destination's URL. Literal percent signs (`%25`) and `..` inside the query string are allowed. Use `curl.exe -i` to see the HTTP status.
 
 ## Code quality
 
