@@ -1,48 +1,9 @@
 const express = require('express');
 const { executeHttpRequest } = require('@sap-cloud-sdk/http-client');
+const { hasTraversal } = require('./pathGuard');
 
 const REQUIRED_SCOPE = 'call-destination';
 const DEFAULT_DESTINATION = 'Local_NetWeaver_Test';
-
-// Control characters (NUL, tab, CR, LF, ...) are stripped or ignored by URL parsers and servers,
-// which can turn e.g. ".<TAB>." into "..", so they are never allowed.
-const hasControlChars = (s) => [...s].some((c) => c.codePointAt(0) <= 0x1f || c === '\u007f');
-// Encoded-again dots, slashes, backslashes or control characters ("%252e", "%255c", "%2509", ...)
-// only matter to a backend that decodes twice or more; reject them instead of guessing.
-const DOUBLE_ENCODED = /%(?:25)+(?:2e|2f|5c|[01][0-9a-f]|7f)/i;
-const SENTINEL_BASE = 'http://base.invalid/base/';
-
-const isParentSegment = (segment) => segment.split(';')[0] === '..'; // "..;x" is ".." to some servers
-
-// Returns true if the path could climb out of the destination's URL space. Instead of listing
-// encodings, it combines: (1) no control characters, (2) no double-encoded dots/separators,
-// and, for both the raw and the once-decoded path (cut at a "?" or "#", which a backend may
-// see after decoding): (3) no ".." segment and (4) a resolution with the WHATWG URL parser
-// (the same dot-segment rules HTTP clients use) that must stay under the base.
-// Decoding happens once only, so literal percent signs ("100%25" -> "100%") stay valid.
-function hasTraversal(path) {
-  const pathOnly = path.split('?')[0];
-  if (hasControlChars(path) || DOUBLE_ENCODED.test(pathOnly)) return true;
-
-  let decoded;
-  try {
-    decoded = decodeURIComponent(pathOnly);
-  } catch {
-    return true;
-  }
-  if (hasControlChars(decoded)) return true;
-
-  return [pathOnly, decoded].some((candidate) => {
-    const target = candidate.split(/[?#]/)[0];
-    if (target.split(/[/\\]/).some(isParentSegment)) return true;
-    try {
-      const resolved = new URL(target.replace(/^[/\\]+/, ''), SENTINEL_BASE);
-      return resolved.host !== 'base.invalid' || !resolved.pathname.startsWith('/base/');
-    } catch {
-      return true; // a path the URL parser rejects is not safe to forward
-    }
-  });
-}
 
 // xssec expects a raw JWT string in `jwt`; `token` would need a decoded Token instance
 function createXssecAdapter(xssec, authService) {
@@ -122,4 +83,4 @@ if (require.main === module) {
   start();
 }
 
-module.exports = { createApp, createXssecAdapter, hasTraversal, REQUIRED_SCOPE };
+module.exports = { createApp, createXssecAdapter, REQUIRED_SCOPE };
