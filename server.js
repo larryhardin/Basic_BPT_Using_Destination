@@ -60,6 +60,8 @@ function createApp({ createSecurityContext, sendRequest = executeHttpRequest } =
 
 function start() {
   const xsenv = require('@sap/xsenv');
+  // Loads default-env.json (local development) into process.env; no-op if absent
+  xsenv.loadEnv();
   const xssec = require('@sap/xssec');
   const { xsuaa } = xsenv.getServices({ xsuaa: { label: 'xsuaa' } });
   const authService = new xssec.XsuaaService(xsuaa);
